@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Wallet, ArrowRight, Layers } from "lucide-react";
+import { TrendingUp, Wallet, ArrowRight, Layers, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface UserSummaryCardProps {
@@ -78,14 +78,24 @@ const UserSummaryCard = ({ isLoading, hasData, totalBalance, totalYield }: UserS
           Across all integrated Mantle protocols
         </p>
 
-        <Button 
-          variant="default" 
-          className="w-full group"
-          onClick={() => navigate("/positions")}
-        >
-          View Position Details
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-        </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <Button 
+            variant="default" 
+            className="group"
+            onClick={() => navigate("/positions")}
+          >
+            Positions
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Button>
+          <Button 
+            variant="glass" 
+            className="group"
+            onClick={() => navigate("/analytics")}
+          >
+            <BarChart3 className="h-4 w-4 mr-1" />
+            Analytics
+          </Button>
+        </div>
       </div>
     </div>
   );

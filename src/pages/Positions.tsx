@@ -5,69 +5,52 @@ import { ArrowLeft, Wallet, Layers } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import PositionCard from "@/components/positions/PositionCard";
 import { Button } from "@/components/ui/button";
+import { useMantleSDK } from "@/hooks/useMantleSDK";
 
-const mockPositions = [
-  {
-    protocol: "mETH Protocol",
-    protocolType: "Liquid Staking",
-    color: "from-primary to-primary/60",
-    assets: [
-      {
-        name: "Mantle Staked ETH",
-        symbol: "mETH",
-        balance: "5.234",
-        apr: "4.8%",
-        value: "$12,456.78"
-      }
-    ]
-  },
-  {
-    protocol: "Lendle",
-    protocolType: "Lending",
-    color: "from-secondary to-secondary/60",
-    assets: [
-      {
-        name: "USD Coin",
-        symbol: "USDC",
-        balance: "5,000.00",
-        apr: "6.2%",
-        value: "$5,000.00"
-      },
-      {
-        name: "Wrapped ETH",
-        symbol: "WETH",
-        balance: "1.5",
-        apr: "3.1%",
-        value: "$3,567.89"
-      }
-    ]
-  },
-  {
-    protocol: "USD1",
-    protocolType: "RWA",
-    color: "from-emerald-500 to-emerald-600",
-    assets: [
-      {
-        name: "USD1 – RWA Stablecoin",
-        symbol: "USD1",
-        balance: "3,543.22",
-        apr: "5.2%",
-        value: "$3,543.22"
-      }
-    ]
-  }
-];
+interface Asset {
+  name: string;
+  symbol: string;
+  balance: string;
+  apr: string;
+  value: string;
+}
+
+interface Position {
+  protocol: string;
+  protocolType: string;
+  color: string;
+  assets: Asset[];
+}
 
 const Positions = () => {
   const navigate = useNavigate();
+  const { getUserPositions, loading } = useMantleSDK();
   const [walletAddress, setWalletAddress] = useState("");
+  const [positions, setPositions] = useState<Position[]>([]);
 
   useEffect(() => {
     const storedAddress = sessionStorage.getItem("walletAddress");
+    const storedPositions = sessionStorage.getItem("userPositions");
+    
     if (storedAddress) {
       setWalletAddress(storedAddress);
+      
+      if (storedPositions) {
+        const parsed = JSON.parse(storedPositions);
+        setPositions(parsed.positions || []);
+      } else {
+        // Fetch fresh if no cached data
+        loadPositions(storedAddress);
+      }
     }
   }, []);
+
+  const loadPositions = async (address: string) => {
+    const data = await getUserPositions(address);
+    if (data) {
+      setPositions(data.positions);
+    }
+  };
 
   const truncateAddress = (address: string) => {
     if (!address) return "";
@@ -129,20 +112,39 @@ const Positions = () => {
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent">
                   <Layers className="h-4 w-4 text-primary" />
                   <span className="text-muted-foreground">Protocols:</span>
-                  <span className="font-medium text-foreground">{mockPositions.length}</span>
+                  <span className="font-medium text-foreground">{positions.length}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Position Cards */}
-          <div className="space-y-6">
-            {mockPositions.map((position, index) => (
-              <div key={position.protocol} style={{ animationDelay: `${0.15 + index * 0.1}s` }}>
-                <PositionCard {...position} />
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="space-y-6">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="glass-card rounded-2xl p-6 animate-pulse">
+                  <div className="h-8 w-48 bg-muted rounded mb-4" />
+                  <div className="h-24 bg-muted rounded" />
+                </div>
+              ))}
+            </div>
+          ) : positions.length === 0 ? (
+            <div className="glass-card rounded-2xl p-12 text-center">
+              <Layers className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No positions found</h3>
+              <p className="text-muted-foreground">
+                This wallet doesn't have any active positions on supported protocols.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {positions.map((position, index) => (
+                <div key={position.protocol} style={{ animationDelay: `${0.15 + index * 0.1}s` }}>
+                  <PositionCard {...position} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

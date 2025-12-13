@@ -4,24 +4,39 @@ import Navbar from "@/components/layout/Navbar";
 import WalletInput from "@/components/playground/WalletInput";
 import ProtocolsCard from "@/components/playground/ProtocolsCard";
 import UserSummaryCard from "@/components/playground/UserSummaryCard";
+import { useMantleSDK } from "@/hooks/useMantleSDK";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasData, setHasData] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
+  const [totalBalance, setTotalBalance] = useState("$0");
+  const [totalYield, setTotalYield] = useState("0%");
+  
+  const { getUserPositions } = useMantleSDK();
 
   const handleLoadPositions = async (address: string) => {
     setIsLoading(true);
     setWalletAddress(address);
     
-    // Simulate SDK call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // Call SDK to get user positions
+    const positions = await getUserPositions(address);
     
-    setHasData(true);
+    if (positions && positions.positions.length > 0) {
+      setHasData(true);
+      setTotalBalance(positions.totalBalance);
+      setTotalYield(positions.totalYield);
+      
+      // Store in session for positions page
+      sessionStorage.setItem("walletAddress", address);
+      sessionStorage.setItem("userPositions", JSON.stringify(positions));
+    } else {
+      setHasData(false);
+      setTotalBalance("$0");
+      setTotalYield("0%");
+    }
+    
     setIsLoading(false);
-    
-    // Store in session for positions page
-    sessionStorage.setItem("walletAddress", address);
   };
 
   return (
@@ -67,8 +82,8 @@ const Index = () => {
               <UserSummaryCard 
                 isLoading={isLoading}
                 hasData={hasData}
-                totalBalance="$24,567.89"
-                totalYield="8.4%"
+                totalBalance={totalBalance}
+                totalYield={totalYield}
               />
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ExternalLink, Github, BookOpen, Layers } from "lucide-react";
+import { ExternalLink, Github, BookOpen, Layers, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Navbar = () => {
@@ -9,6 +9,7 @@ const Navbar = () => {
     { label: "Docs", href: "#", icon: BookOpen, external: true },
     { label: "GitHub", href: "#", icon: Github, external: true },
     { label: "Playground", href: "/", icon: Layers, external: false },
+    { label: "Analytics", href: "/analytics", icon: BarChart3, external: false },
   ];
 
   return (
