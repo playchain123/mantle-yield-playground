@@ -1,20 +1,15 @@
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useMantleSDK } from "@/hooks/useMantleSDK";
 
 interface Protocol {
   id: string;
   name: string;
-  type: "RWA" | "Lending" | "Liquid Staking" | "DEX" | "Yield";
+  type: string;
+  tvl: number;
+  apy: number;
   color: string;
 }
-
-const protocols: Protocol[] = [
-  { id: "meth", name: "mETH", type: "Liquid Staking", color: "from-primary to-primary/60" },
-  { id: "cmeth", name: "cmETH", type: "Liquid Staking", color: "from-primary to-secondary" },
-  { id: "lendle", name: "Lendle", type: "Lending", color: "from-secondary to-secondary/60" },
-  { id: "aurelius", name: "Aurelius", type: "Lending", color: "from-amber-500 to-amber-600" },
-  { id: "usd1", name: "USD1", type: "RWA", color: "from-emerald-500 to-emerald-600" },
-  { id: "ondo", name: "Ondo", type: "RWA", color: "from-blue-500 to-blue-600" },
-];
 
 const typeColors: Record<string, string> = {
   "RWA": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -28,7 +23,22 @@ interface ProtocolsCardProps {
   isLoading?: boolean;
 }
 
-const ProtocolsCard = ({ isLoading }: ProtocolsCardProps) => {
+const ProtocolsCard = ({ isLoading: externalLoading }: ProtocolsCardProps) => {
+  const { listSupportedProtocols, loading: sdkLoading } = useMantleSDK();
+  const [protocols, setProtocols] = useState<Protocol[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadProtocols = async () => {
+      const data = await listSupportedProtocols();
+      setProtocols(data);
+      setHasLoaded(true);
+    };
+    loadProtocols();
+  }, [listSupportedProtocols]);
+
+  const isLoading = externalLoading || (sdkLoading && !hasLoaded);
+
   if (isLoading) {
     return (
       <div className="glass-card rounded-2xl p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
@@ -68,12 +78,15 @@ const ProtocolsCard = ({ isLoading }: ProtocolsCardProps) => {
                 <span className="font-medium text-foreground">{protocol.name}</span>
               </div>
               
-              <span className={cn(
-                "inline-flex px-2 py-0.5 text-xs font-medium rounded-full border",
-                typeColors[protocol.type]
-              )}>
-                {protocol.type}
-              </span>
+              <div className="flex items-center justify-between">
+                <span className={cn(
+                  "inline-flex px-2 py-0.5 text-xs font-medium rounded-full border",
+                  typeColors[protocol.type]
+                )}>
+                  {protocol.type}
+                </span>
+                <span className="text-xs text-primary font-medium">{protocol.apy}% APY</span>
+              </div>
             </div>
           </div>
         ))}
