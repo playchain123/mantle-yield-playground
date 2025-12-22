@@ -1,1 +1,4 @@
 project_id = "swppjormvqaijozghbsb"
+
+[functions.mantle-sdk]
+verify_jwt = false
