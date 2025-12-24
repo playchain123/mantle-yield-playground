@@ -984,6 +984,37 @@ serve(async (req) => {
         break;
       }
       
+      case 'getProtocolDetails': {
+        const body = req.method === 'POST' ? await req.json() : {};
+        const protocolId = body.protocol || url.searchParams.get('protocol');
+        
+        if (!protocolId) {
+          return new Response(
+            JSON.stringify({ error: 'Protocol ID is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const protocols = sdk.listSupportedProtocols();
+        const protocol = protocols.find(p => p.id === protocolId);
+        
+        if (!protocol) {
+          return new Response(
+            JSON.stringify({ error: 'Protocol not found' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const allYields = await sdk.getPoolYields();
+        const protocolYields = allYields.filter(y => y.protocolId === protocolId);
+        
+        responseData = { 
+          protocol,
+          yields: protocolYields,
+        };
+        break;
+      }
+      
       case 'getUserPositions': {
         if (!walletAddress) {
           return new Response(

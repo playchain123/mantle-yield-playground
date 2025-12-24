@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Protocol {
   id: string;
@@ -8,6 +7,10 @@ interface Protocol {
   tvl: number;
   apy: number;
   color: string;
+  description?: string;
+  contractAddress?: string;
+  risks?: string[];
+  features?: string[];
 }
 
 interface Asset {
@@ -58,16 +61,39 @@ interface Transaction {
   type: string;
 }
 
+interface PoolYield {
+  protocolId: string;
+  protocolName: string;
+  poolName: string;
+  assetSymbol: string;
+  assetAddress: string;
+  apr: number;
+  underlying: string;
+  riskLevel: string;
+  tvl?: number;
+}
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
+
 export const useMantleSDK = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const callSDK = useCallback(async <T>(
     action: string, 
-    params?: { wallet?: string; protocol?: string; asset?: string; amount?: string }
+    params?: { wallet?: string; protocol?: string; asset?: string; amount?: string },
+    attempt = 1
   ): Promise<T | null> => {
-    setLoading(true);
-    setError(null);
+    if (attempt === 1) {
+      setLoading(true);
+      setError(null);
+      setRetryCount(0);
+    }
 
     try {
       const queryParams = new URLSearchParams({ action });
@@ -89,25 +115,52 @@ export const useMantleSDK = () => {
 
       const response = await fetch(url, options);
       
+      // Handle 5xx errors (backend waking up)
+      if (response.status >= 500 && attempt < MAX_RETRIES) {
+        console.log(`[SDK] Backend unavailable, retrying in ${RETRY_DELAY}ms (attempt ${attempt}/${MAX_RETRIES})`);
+        setRetrying(true);
+        setRetryCount(attempt);
+        await sleep(RETRY_DELAY);
+        return callSDK<T>(action, params, attempt + 1);
+      }
+      
       if (!response.ok) {
         throw new Error(`SDK call failed: ${response.statusText}`);
       }
 
       const data = await response.json();
+      setRetrying(false);
       return data as T;
     } catch (err) {
+      // Retry on network errors
+      if (attempt < MAX_RETRIES) {
+        console.log(`[SDK] Network error, retrying in ${RETRY_DELAY}ms (attempt ${attempt}/${MAX_RETRIES})`);
+        setRetrying(true);
+        setRetryCount(attempt);
+        await sleep(RETRY_DELAY);
+        return callSDK<T>(action, params, attempt + 1);
+      }
+      
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
+      setRetrying(false);
       console.error('SDK Error:', message);
       return null;
     } finally {
-      setLoading(false);
+      if (attempt >= MAX_RETRIES || !retrying) {
+        setLoading(false);
+      }
     }
   }, []);
 
   const listSupportedProtocols = useCallback(async () => {
     const result = await callSDK<{ protocols: Protocol[] }>('listSupportedProtocols');
     return result?.protocols || [];
+  }, [callSDK]);
+
+  const getProtocolDetails = useCallback(async (protocolId: string) => {
+    const result = await callSDK<{ protocol: Protocol; yields: PoolYield[] }>('getProtocolDetails', { protocol: protocolId });
+    return result;
   }, [callSDK]);
 
   const getUserPositions = useCallback(async (walletAddress: string) => {
@@ -130,6 +183,11 @@ export const useMantleSDK = () => {
     return result?.history || [];
   }, [callSDK]);
 
+  const getPoolYields = useCallback(async () => {
+    const result = await callSDK<{ yields: PoolYield[] }>('getPoolYields');
+    return result?.yields || [];
+  }, [callSDK]);
+
   const buildDepositTx = useCallback(async (protocol: string, asset: string, amount: string) => {
     const result = await callSDK<{ transaction: Transaction }>('buildDepositTx', { protocol, asset, amount });
     return result?.transaction;
@@ -140,15 +198,25 @@ export const useMantleSDK = () => {
     return result?.transaction;
   }, [callSDK]);
 
+  const getBlockNumber = useCallback(async () => {
+    const result = await callSDK<{ blockNumber: string }>('getBlockNumber');
+    return result?.blockNumber;
+  }, [callSDK]);
+
   return {
     loading,
     error,
+    retrying,
+    retryCount,
     listSupportedProtocols,
+    getProtocolDetails,
     getUserPositions,
     getYieldHistory,
     getProtocolDistribution,
     getUserPerformanceHistory,
+    getPoolYields,
     buildDepositTx,
     buildWithdrawTx,
+    getBlockNumber,
   };
 };
