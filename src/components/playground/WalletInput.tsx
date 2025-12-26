@@ -35,12 +35,12 @@ const WalletInput = ({ onLoadPositions, isLoading }: WalletInputProps) => {
   };
 
   return (
-    <div className="glass-card rounded-2xl p-6 sm:p-8 glow-primary animate-fade-in">
+    <div className="rounded-2xl p-6 sm:p-8 animate-fade-in">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <label 
             htmlFor="wallet-address" 
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+            className="flex items-center gap-2 text-sm font-medium text-foreground"
           >
             <Wallet className="h-4 w-4" />
             Wallet Address
@@ -55,7 +55,7 @@ const WalletInput = ({ onLoadPositions, isLoading }: WalletInputProps) => {
               onBlur={() => setTouched(true)}
               placeholder="0x..."
               className={cn(
-                "w-full h-14 px-4 pr-12 rounded-xl bg-input border-2 transition-all duration-200",
+                "w-full h-14 px-4 pr-12 rounded-xl bg-background border-2 transition-all duration-200",
                 "text-foreground placeholder:text-muted-foreground/50",
                 "font-mono text-sm sm:text-base",
                 "focus:outline-none focus:ring-0",
