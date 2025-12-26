@@ -1,15 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
-import { ExternalLink, Github, BookOpen, Layers, BarChart3 } from "lucide-react";
+import { Layers, BarChart3, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Navbar = () => {
   const location = useLocation();
   
   const navLinks = [
-    { label: "Docs", href: "#", icon: BookOpen, external: true },
-    { label: "GitHub", href: "#", icon: Github, external: true },
-    { label: "Playground", href: "/", icon: Layers, external: false },
-    { label: "Analytics", href: "/analytics", icon: BarChart3, external: false },
+    { label: "Playground", href: "/", icon: Layers },
+    { label: "Swap", href: "/swap", icon: ArrowLeftRight },
+    { label: "Analytics", href: "/analytics", icon: BarChart3 },
   ];
 
   return (
@@ -32,14 +31,13 @@ const Navbar = () => {
               to={link.href}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                location.pathname === link.href && !link.external
+                location.pathname === link.href
                   ? "bg-accent text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  : "text-foreground hover:text-foreground hover:bg-accent/50"
               )}
             >
               <link.icon className="h-4 w-4" />
               <span className="hidden sm:inline">{link.label}</span>
-              {link.external && <ExternalLink className="h-3 w-3 opacity-50" />}
             </Link>
           ))}
         </div>

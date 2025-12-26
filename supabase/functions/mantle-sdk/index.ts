@@ -834,6 +834,15 @@ class MantleRwaYieldSdk {
   }> {
     console.log(`[SDK] Fetching positions for ${userAddress}`);
     
+    // Check if this is the demo/example wallet address
+    const DEMO_WALLET = '0x742d35Cc6634C0532925a3b844Bc9e7595f8bDe7'.toLowerCase();
+    const isDemo = userAddress.toLowerCase() === DEMO_WALLET;
+    
+    if (isDemo) {
+      console.log('[SDK] Demo wallet detected, returning demo positions');
+      return this.getDemoPositions();
+    }
+    
     const allPositions = await Promise.all(
       this.adapters.map(adapter => adapter.getUserPositions(userAddress))
     );
@@ -858,6 +867,98 @@ class MantleRwaYieldSdk {
         totalBalance: `$${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         averageApr: parseFloat(averageApr.toFixed(2)),
         protocolCount: protocolsWithPositions,
+      },
+    };
+  }
+  
+  private getDemoPositions(): {
+    positions: UserPosition[];
+    summary: { totalBalance: string; averageApr: number; protocolCount: number; };
+  } {
+    const demoPositions: UserPosition[] = [
+      {
+        protocolId: 'meth',
+        protocolName: 'mETH Protocol',
+        assetSymbol: 'mETH',
+        assetName: 'Mantle Staked ETH',
+        assetAddress: MANTLE_MAINNET_CONTRACTS.METH_TOKEN,
+        balance: '12.5',
+        balanceRaw: '12500000000000000000',
+        apr: 4.5,
+        value: '$29,750.00',
+        network: this.config.network,
+      },
+      {
+        protocolId: 'cmeth',
+        protocolName: 'cmETH',
+        assetSymbol: 'cmETH',
+        assetName: 'Collateral mETH',
+        assetAddress: MANTLE_MAINNET_CONTRACTS.CMETH_TOKEN,
+        balance: '8.25',
+        balanceRaw: '8250000000000000000',
+        apr: 5.2,
+        value: '$19,635.00',
+        network: this.config.network,
+      },
+      {
+        protocolId: 'lendle',
+        protocolName: 'Lendle',
+        assetSymbol: 'USDC',
+        assetName: 'USD Coin',
+        assetAddress: MANTLE_MAINNET_CONTRACTS.USDC,
+        balance: '25,000',
+        balanceRaw: '25000000000',
+        apr: 6.2,
+        value: '$25,000.00',
+        network: this.config.network,
+      },
+      {
+        protocolId: 'aurelius',
+        protocolName: 'Aurelius',
+        assetSymbol: 'USDT',
+        assetName: 'Tether USD',
+        assetAddress: MANTLE_MAINNET_CONTRACTS.USDT,
+        balance: '15,500',
+        balanceRaw: '15500000000',
+        apr: 5.8,
+        value: '$15,500.00',
+        network: this.config.network,
+      },
+      {
+        protocolId: 'usd1',
+        protocolName: 'USD1',
+        assetSymbol: 'USD1',
+        assetName: 'USD1 RWA Stablecoin',
+        assetAddress: '0xC74E9cB8df25597bD6A6bD4D5c0cA1e170Aa8af4' as Address,
+        balance: '50,000',
+        balanceRaw: '50000000000000000000000',
+        apr: 5.2,
+        value: '$50,000.00',
+        network: this.config.network,
+      },
+      {
+        protocolId: 'ondo',
+        protocolName: 'Ondo Finance',
+        assetSymbol: 'USDY',
+        assetName: 'Ondo USDY',
+        assetAddress: '0x5bE26527e817998A7206475496fDE1E68957c5A6' as Address,
+        balance: '35,250',
+        balanceRaw: '35250000000000000000000',
+        apr: 4.5,
+        value: '$35,250.00',
+        network: this.config.network,
+      },
+    ];
+    
+    const totalValue = 175135;
+    const weightedApr = (29750 * 4.5 + 19635 * 5.2 + 25000 * 6.2 + 15500 * 5.8 + 50000 * 5.2 + 35250 * 4.5) / totalValue;
+    
+    return {
+      positions: demoPositions,
+      summary: {
+        totalBalance: '$175,135.00',
+        averageApr: parseFloat(weightedApr.toFixed(2)),
+        protocolCount: 6,
       },
     };
   }

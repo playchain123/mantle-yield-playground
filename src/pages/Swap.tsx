@@ -1,0 +1,363 @@
+import { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
+import { ArrowDownUp, Loader2, Info, AlertCircle } from "lucide-react";
+import Navbar from "@/components/layout/Navbar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// Mantle Network Tokens with real contract addresses
+const MANTLE_TOKENS = [
+  { 
+    symbol: "MNT", 
+    name: "Mantle", 
+    address: "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
+    decimals: 18,
+    price: 0.85,
+    logo: "🔷"
+  },
+  { 
+    symbol: "WETH", 
+    name: "Wrapped Ether", 
+    address: "0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111",
+    decimals: 18,
+    price: 2380,
+    logo: "⟠"
+  },
+  { 
+    symbol: "mETH", 
+    name: "Mantle Staked ETH", 
+    address: "0xcDA86A272531e8640cD7F1a92c01839911B90bb0",
+    decimals: 18,
+    price: 2420,
+    logo: "🔹"
+  },
+  { 
+    symbol: "cmETH", 
+    name: "Collateralized mETH", 
+    address: "0xE6829d9a7eE3040e1276Fa75293Bde931859e8fA",
+    decimals: 18,
+    price: 2450,
+    logo: "💠"
+  },
+  { 
+    symbol: "USDC", 
+    name: "USD Coin", 
+    address: "0x09Bc4E0D10E52467bde4D26bC7b4F0a684B8A1e0",
+    decimals: 6,
+    price: 1.00,
+    logo: "💵"
+  },
+  { 
+    symbol: "USDT", 
+    name: "Tether USD", 
+    address: "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE",
+    decimals: 6,
+    price: 1.00,
+    logo: "💲"
+  },
+  { 
+    symbol: "USD1", 
+    name: "USD1 Stablecoin", 
+    address: "0xC74E9cB8df25597bD6A6bD4D5c0cA1e170Aa8af4",
+    decimals: 18,
+    price: 1.00,
+    logo: "🏦"
+  },
+  { 
+    symbol: "USDY", 
+    name: "Ondo USDY", 
+    address: "0x5bE26527e817998A7206475496fDE1E68957c5A6",
+    decimals: 18,
+    price: 1.05,
+    logo: "📊"
+  },
+];
+
+const Swap = () => {
+  const [fromToken, setFromToken] = useState(MANTLE_TOKENS[0]);
+  const [toToken, setToToken] = useState(MANTLE_TOKENS[2]);
+  const [fromAmount, setFromAmount] = useState("");
+  const [toAmount, setToAmount] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [slippage, setSlippage] = useState("0.5");
+  const [priceImpact, setPriceImpact] = useState("0.00");
+
+  // Calculate swap output
+  useEffect(() => {
+    if (fromAmount && parseFloat(fromAmount) > 0) {
+      const fromValue = parseFloat(fromAmount) * fromToken.price;
+      const toAmountCalc = fromValue / toToken.price;
+      setToAmount(toAmountCalc.toFixed(6));
+      
+      // Calculate price impact (simulated based on amount)
+      const impact = Math.min(parseFloat(fromAmount) * 0.001, 5);
+      setPriceImpact(impact.toFixed(2));
+    } else {
+      setToAmount("");
+      setPriceImpact("0.00");
+    }
+  }, [fromAmount, fromToken, toToken]);
+
+  const handleSwapTokens = () => {
+    const tempToken = fromToken;
+    setFromToken(toToken);
+    setToToken(tempToken);
+    setFromAmount(toAmount);
+    setToAmount(fromAmount);
+  };
+
+  const handleSwap = async () => {
+    if (!fromAmount || parseFloat(fromAmount) <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid amount to swap.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    
+    // Simulate swap transaction
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    toast({
+      title: "Swap Transaction Built",
+      description: `Swap ${fromAmount} ${fromToken.symbol} → ${toAmount} ${toToken.symbol} ready for signing. (Demo mode - no real transaction)`,
+    });
+    
+    setIsLoading(false);
+  };
+
+  const getExchangeRate = () => {
+    return (fromToken.price / toToken.price).toFixed(6);
+  };
+
+  return (
+    <>
+      <Helmet>
+        <title>Swap - Mantle Token Exchange</title>
+        <meta name="description" content="Swap tokens on Mantle Network with the best rates." />
+      </Helmet>
+
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-hero" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse-glow" />
+          <div className="absolute top-20 right-1/4 w-80 h-80 bg-secondary/10 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: "1s" }} />
+          
+          <div className="relative container py-16 sm:py-24">
+            <div className="text-center mb-12 animate-fade-in">
+              <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4">
+                Mantle Token <span className="text-gradient">Swap</span>
+              </h1>
+              <p className="text-lg text-foreground max-w-xl mx-auto">
+                Exchange tokens on Mantle Network with optimized routes and minimal slippage.
+              </p>
+            </div>
+
+            <div className="max-w-md mx-auto">
+              <div className="glass-card rounded-2xl p-6 glow-primary animate-fade-in">
+                {/* From Token */}
+                <div className="space-y-2 mb-2">
+                  <label className="text-sm text-foreground">From</label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={fromToken.symbol}
+                      onValueChange={(value) => {
+                        const token = MANTLE_TOKENS.find(t => t.symbol === value);
+                        if (token && token.symbol !== toToken.symbol) {
+                          setFromToken(token);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-[140px] bg-accent/50 border-border/50">
+                        <SelectValue>
+                          <span className="flex items-center gap-2">
+                            <span>{fromToken.logo}</span>
+                            <span>{fromToken.symbol}</span>
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MANTLE_TOKENS.filter(t => t.symbol !== toToken.symbol).map((token) => (
+                          <SelectItem key={token.symbol} value={token.symbol}>
+                            <span className="flex items-center gap-2">
+                              <span>{token.logo}</span>
+                              <span>{token.symbol}</span>
+                              <span className="text-muted-foreground text-xs">({token.name})</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      placeholder="0.0"
+                      value={fromAmount}
+                      onChange={(e) => setFromAmount(e.target.value)}
+                      className="flex-1 bg-accent/50 border-border/50 text-right text-lg"
+                    />
+                  </div>
+                  <div className="text-xs text-foreground text-right">
+                    ≈ ${(parseFloat(fromAmount || "0") * fromToken.price).toFixed(2)} USD
+                  </div>
+                </div>
+
+                {/* Swap Button */}
+                <div className="flex justify-center my-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full bg-accent hover:bg-accent/80 border border-border/50"
+                    onClick={handleSwapTokens}
+                  >
+                    <ArrowDownUp className="h-4 w-4 text-foreground" />
+                  </Button>
+                </div>
+
+                {/* To Token */}
+                <div className="space-y-2 mb-6">
+                  <label className="text-sm text-foreground">To</label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={toToken.symbol}
+                      onValueChange={(value) => {
+                        const token = MANTLE_TOKENS.find(t => t.symbol === value);
+                        if (token && token.symbol !== fromToken.symbol) {
+                          setToToken(token);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-[140px] bg-accent/50 border-border/50">
+                        <SelectValue>
+                          <span className="flex items-center gap-2">
+                            <span>{toToken.logo}</span>
+                            <span>{toToken.symbol}</span>
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MANTLE_TOKENS.filter(t => t.symbol !== fromToken.symbol).map((token) => (
+                          <SelectItem key={token.symbol} value={token.symbol}>
+                            <span className="flex items-center gap-2">
+                              <span>{token.logo}</span>
+                              <span>{token.symbol}</span>
+                              <span className="text-muted-foreground text-xs">({token.name})</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="text"
+                      placeholder="0.0"
+                      value={toAmount}
+                      readOnly
+                      className="flex-1 bg-accent/30 border-border/50 text-right text-lg"
+                    />
+                  </div>
+                  <div className="text-xs text-foreground text-right">
+                    ≈ ${(parseFloat(toAmount || "0") * toToken.price).toFixed(2)} USD
+                  </div>
+                </div>
+
+                {/* Swap Details */}
+                <div className="bg-accent/30 rounded-xl p-4 mb-6 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-foreground flex items-center gap-1">
+                      <Info className="h-3 w-3" />
+                      Exchange Rate
+                    </span>
+                    <span className="text-foreground">
+                      1 {fromToken.symbol} = {getExchangeRate()} {toToken.symbol}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-foreground">Slippage Tolerance</span>
+                    <span className="text-foreground">{slippage}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-foreground">Price Impact</span>
+                    <span className={parseFloat(priceImpact) > 1 ? "text-destructive" : "text-foreground"}>
+                      {priceImpact}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-foreground">Network</span>
+                    <span className="text-primary">Mantle Mainnet</span>
+                  </div>
+                </div>
+
+                {/* Swap Button */}
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleSwap}
+                  disabled={isLoading || !fromAmount || parseFloat(fromAmount) <= 0}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Building Transaction...
+                    </>
+                  ) : (
+                    "Swap Tokens"
+                  )}
+                </Button>
+
+                {/* Demo Notice */}
+                <div className="mt-4 p-3 bg-accent/50 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-foreground">
+                    <strong>Demo Mode:</strong> This swap interface demonstrates SDK transaction building. 
+                    No real transactions are executed. Connect a wallet to enable live swaps.
+                  </p>
+                </div>
+              </div>
+
+              {/* Supported Tokens List */}
+              <div className="mt-8 glass-card rounded-2xl p-6 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+                <h3 className="text-lg font-semibold text-foreground mb-4">
+                  Supported Mantle Tokens
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {MANTLE_TOKENS.map((token) => (
+                    <div 
+                      key={token.symbol}
+                      className="flex items-center gap-2 p-3 rounded-lg bg-accent/30 border border-border/30"
+                    >
+                      <span className="text-xl">{token.logo}</span>
+                      <div>
+                        <div className="font-medium text-foreground text-sm">{token.symbol}</div>
+                        <div className="text-xs text-foreground truncate max-w-[100px]">{token.name}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer className="border-t border-border/50 py-8">
+          <div className="container text-center text-sm text-foreground">
+            <p>Powered by Mantle RWA & Yield Aggregator SDK</p>
+          </div>
+        </footer>
+      </div>
+    </>
+  );
+};
+
+export default Swap;
