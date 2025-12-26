@@ -61,9 +61,9 @@ const Index = () => {
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6">
                 Mantle RWA & Yield
                 <br />
-                <span className="text-gradient">Aggregator Playground</span>
+                <span className="text-foreground">Aggregator Playground</span>
               </h1>
-              <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
+              <p className="text-lg sm:text-xl text-foreground max-w-2xl mx-auto">
                 Test how the SDK unifies positions and yields across Mantle protocols in one simple interface.
               </p>
             </div>

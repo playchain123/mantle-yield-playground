@@ -150,7 +150,7 @@ const ProtocolsCard = ({ isLoading: externalLoading }: ProtocolsCardProps) => {
             <div
               key={protocol.id}
               onClick={() => handleProtocolClick(protocol)}
-              className="group relative p-4 rounded-xl bg-accent/50 border border-border/50 hover:border-primary/30 transition-all duration-300 hover-lift cursor-pointer"
+              className="group relative p-4 rounded-xl border border-border/30 hover:border-primary/30 transition-all duration-300 hover-lift cursor-pointer"
             >
               <div className={cn(
                 "absolute inset-0 rounded-xl bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity",

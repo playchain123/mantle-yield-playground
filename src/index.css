@@ -9,10 +9,10 @@
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
 
-    --card: 0 0% 5%;
+    --card: 0 0% 0%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 5%;
+    --popover: 0 0% 3%;
     --popover-foreground: 0 0% 100%;
 
     --primary: 165 90% 55%;
@@ -24,14 +24,14 @@
     --muted: 0 0% 12%;
     --muted-foreground: 0 0% 100%;
 
-    --accent: 0 0% 8%;
+    --accent: 0 0% 3%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 15%;
-    --input: 0 0% 8%;
+    --border: 0 0% 20%;
+    --input: 0 0% 3%;
     --ring: 165 90% 55%;
 
     --radius: 0.75rem;
@@ -39,7 +39,7 @@
     /* Custom Mantle tokens */
     --glow-primary: 165 90% 55%;
     --glow-secondary: 258 90% 66%;
-    --surface-glass: 0 0% 8%;
+    --surface-glass: 0 0% 0%;
     
     --sidebar-background: 0 0% 3%;
     --sidebar-foreground: 0 0% 100%;
@@ -54,22 +54,22 @@
   .dark {
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
-    --card: 0 0% 5%;
+    --card: 0 0% 0%;
     --card-foreground: 0 0% 100%;
-    --popover: 0 0% 5%;
+    --popover: 0 0% 3%;
     --popover-foreground: 0 0% 100%;
     --primary: 165 90% 55%;
     --primary-foreground: 0 0% 0%;
     --secondary: 258 90% 66%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 12%;
+    --muted: 0 0% 8%;
     --muted-foreground: 0 0% 100%;
-    --accent: 0 0% 8%;
+    --accent: 0 0% 3%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 15%;
-    --input: 0 0% 8%;
+    --border: 0 0% 20%;
+    --input: 0 0% 3%;
     --ring: 165 90% 55%;
   }
 }
@@ -87,7 +87,7 @@
 
 @layer utilities {
   .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-xl;
+    @apply border border-border/20;
   }
 
   .glow-primary {
