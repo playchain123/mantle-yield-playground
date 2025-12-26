@@ -13,6 +13,15 @@ The Mantle RWA & Yield SDK provides a unified interface for interacting with mul
 - **USD1** - RWA-backed stablecoin (US Treasury Bills)
 - **Ondo Finance** - Tokenized US Treasuries (USDY)
 
+### Key Features
+
+- ✅ **Real On-Chain Data** - Live balance and position queries via Mantle RPC
+- ✅ **Multi-Protocol Aggregation** - Unified API for 6+ DeFi protocols
+- ✅ **Transaction Building** - Build unsigned deposit/withdraw transactions
+- ✅ **Token Swaps** - Exchange Mantle network tokens
+- ✅ **Analytics Dashboard** - Yield trends, protocol distribution, performance tracking
+- ✅ **Automatic Retry** - Built-in retry mechanism for backend cold starts
+
 ## 🚀 Quick Start
 
 ### Installation
@@ -31,9 +40,10 @@ Include the following header in all requests:
 
 ```typescript
 headers: {
-  'Authorization': 'Bearer <SUPABASE_ANON_KEY>',
+  'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3cHBqb3JtdnFhaWpvemdoYnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc0MjcsImV4cCI6MjA4MTIyMzQyN30.-IkhFIhH13GES1GqMtWsjWpx9LNphedmXLCcxY21i98',
   'Content-Type': 'application/json'
 }
+```
 ```
 
 ## 📚 API Reference
@@ -238,6 +248,43 @@ GET /mantle-sdk?action=getBlockNumber
 }
 ```
 
+### Build Swap Transaction
+
+Build a token swap transaction for Mantle tokens.
+
+```bash
+POST /mantle-sdk?action=buildSwapTx
+Content-Type: application/json
+
+{
+  "fromToken": "MNT",
+  "toToken": "USDC",
+  "amount": "100",
+  "wallet": "0x742d35Cc6634C0532925a3b844Bc9e7595f8bDe7",
+  "slippage": "0.5"
+}
+```
+
+**Response:**
+```json
+{
+  "transaction": {
+    "to": "0x...",
+    "data": "0x...",
+    "value": "0",
+    "chainId": 5000,
+    "gasLimit": "200000",
+    "type": "swap"
+  },
+  "quote": {
+    "fromAmount": "100",
+    "toAmount": "85.50",
+    "priceImpact": "0.05",
+    "route": ["MNT", "USDC"]
+  }
+}
+```
+
 ## 🔧 TypeScript SDK Usage
 
 ### React Hook Integration
@@ -330,6 +377,19 @@ if (retrying) {
 │  - Transaction encoding for deposits/withdrawals            │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## 📜 Supported Mantle Tokens
+
+| Token | Name | Address | Decimals |
+|-------|------|---------|----------|
+| MNT | Mantle | `0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8` | 18 |
+| WETH | Wrapped Ether | `0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111` | 18 |
+| mETH | Mantle Staked ETH | `0xcDA86A272531e8640cD7F1a92c01839911B90bb0` | 18 |
+| cmETH | Collateralized mETH | `0xE6829d9a7eE3040e1276Fa75293Bde931859e8fA` | 18 |
+| USDC | USD Coin | `0x09Bc4E0D10E52467bde4D26bC7b4F0a684B8A1e0` | 6 |
+| USDT | Tether USD | `0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE` | 6 |
+| USD1 | USD1 Stablecoin | `0xC74E9cB8df25597bD6A6bD4D5c0cA1e170Aa8af4` | 18 |
+| USDY | Ondo USDY | `0x5bE26527e817998A7206475496fDE1E68957c5A6` | 18 |
 
 ## 📜 Contract Addresses (Mantle Mainnet)
 
