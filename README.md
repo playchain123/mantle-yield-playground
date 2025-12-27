@@ -1,6 +1,6 @@
 # Mantle RWA & Yield Aggregator SDK
 
-A comprehensive TypeScript SDK for aggregating Real World Assets (RWA) and yield opportunities across the Mantle Network ecosystem. Built on Lovable Cloud with full Mantle RPC integration.
+A comprehensive TypeScript SDK for aggregating Real World Assets (RWA) and yield opportunities across the Mantle Network ecosystem. Built on Lovable Cloud with full Mantle RPC integration and **real-time price oracle**.
 
 ## 🌐 Overview
 
@@ -18,7 +18,8 @@ The Mantle RWA & Yield SDK provides a unified interface for interacting with mul
 - ✅ **Real On-Chain Data** - Live balance and position queries via Mantle RPC
 - ✅ **Multi-Protocol Aggregation** - Unified API for 6+ DeFi protocols
 - ✅ **Transaction Building** - Build unsigned deposit/withdraw transactions
-- ✅ **Token Swaps** - Exchange Mantle network tokens
+- ✅ **Token Swaps** - Exchange Mantle network tokens with real-time quotes
+- ✅ **Price Oracle** - Real-time token prices from CoinGecko & DeFiLlama
 - ✅ **Analytics Dashboard** - Yield trends, protocol distribution, performance tracking
 - ✅ **Automatic Retry** - Built-in retry mechanism for backend cold starts
 
@@ -43,7 +44,6 @@ headers: {
   'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3cHBqb3JtdnFhaWpvemdoYnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc0MjcsImV4cCI6MjA4MTIyMzQyN30.-IkhFIhH13GES1GqMtWsjWpx9LNphedmXLCcxY21i98',
   'Content-Type': 'application/json'
 }
-```
 ```
 
 ## 📚 API Reference
@@ -248,6 +248,81 @@ GET /mantle-sdk?action=getBlockNumber
 }
 ```
 
+### Get Token Prices (Price Oracle)
+
+Get real-time token prices from CoinGecko and DeFiLlama aggregated data.
+
+```bash
+GET /mantle-sdk?action=getTokenPrices
+```
+
+**Response:**
+```json
+{
+  "prices": [
+    {
+      "symbol": "MNT",
+      "address": "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
+      "price": 0.85,
+      "source": "multi-source",
+      "timestamp": 1703673600000,
+      "change24h": 2.34
+    },
+    {
+      "symbol": "WETH",
+      "address": "0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111",
+      "price": 2380.50,
+      "source": "multi-source",
+      "timestamp": 1703673600000,
+      "change24h": -1.25
+    }
+  ],
+  "timestamp": 1703673600000,
+  "source": "multi-source-aggregator"
+}
+```
+
+**Price Sources:**
+- **CoinGecko** - Primary source for major tokens (MNT, WETH, mETH, USDC, USDT, USDY)
+- **DeFiLlama** - Backup source with Mantle-specific token data
+- **Derived** - cmETH price derived from mETH with staking premium
+- **Pegged** - Stablecoins (USD1) at $1.00
+
+### Get Swap Quote
+
+Get a real-time swap quote with price impact calculation.
+
+```bash
+GET /mantle-sdk?action=getSwapQuote&fromSymbol=MNT&toSymbol=USDC&amount=100
+```
+
+**Response:**
+```json
+{
+  "fromToken": {
+    "symbol": "MNT",
+    "address": "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
+    "price": 0.85,
+    "source": "multi-source",
+    "timestamp": 1703673600000,
+    "change24h": 2.34
+  },
+  "toToken": {
+    "symbol": "USDC",
+    "address": "0x09Bc4E0D10E52467bde4D26bC7b4F0a684B8A1e0",
+    "price": 1.00,
+    "source": "multi-source",
+    "timestamp": 1703673600000,
+    "change24h": 0.01
+  },
+  "fromAmount": "100",
+  "toAmount": "85.00000000",
+  "exchangeRate": "0.85000000",
+  "priceImpact": "0.0043",
+  "route": "MNT → USDC (Agni Finance)"
+}
+```
+
 ### Build Swap Transaction
 
 Build a token swap transaction for Mantle tokens.
@@ -418,22 +493,54 @@ The edge function accepts the following environment variables:
 
 ```bash
 curl "https://swppjormvqaijozghbsb.supabase.co/functions/v1/mantle-sdk?action=getBlockNumber" \
-  -H "Authorization: Bearer <ANON_KEY>"
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3cHBqb3JtdnFhaWpvemdoYnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc0MjcsImV4cCI6MjA4MTIyMzQyN30.-IkhFIhH13GES1GqMtWsjWpx9LNphedmXLCcxY21i98"
 ```
 
 ### Test Protocol List
 
 ```bash
 curl "https://swppjormvqaijozghbsb.supabase.co/functions/v1/mantle-sdk?action=listSupportedProtocols" \
-  -H "Authorization: Bearer <ANON_KEY>"
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3cHBqb3JtdnFhaWpvemdoYnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc0MjcsImV4cCI6MjA4MTIyMzQyN30.-IkhFIhH13GES1GqMtWsjWpx9LNphedmXLCcxY21i98"
 ```
 
-### Test User Positions
+### Test User Positions (Demo Wallet)
 
 ```bash
 curl "https://swppjormvqaijozghbsb.supabase.co/functions/v1/mantle-sdk?action=getUserPositions&wallet=0x742d35Cc6634C0532925a3b844Bc9e7595f8bDe7" \
-  -H "Authorization: Bearer <ANON_KEY>"
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3cHBqb3JtdnFhaWpvemdoYnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc0MjcsImV4cCI6MjA4MTIyMzQyN30.-IkhFIhH13GES1GqMtWsjWpx9LNphedmXLCcxY21i98"
 ```
+
+### Test Price Oracle
+
+```bash
+curl "https://swppjormvqaijozghbsb.supabase.co/functions/v1/mantle-sdk?action=getTokenPrices" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3cHBqb3JtdnFhaWpvemdoYnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc0MjcsImV4cCI6MjA4MTIyMzQyN30.-IkhFIhH13GES1GqMtWsjWpx9LNphedmXLCcxY21i98"
+```
+
+### Test Swap Quote
+
+```bash
+curl "https://swppjormvqaijozghbsb.supabase.co/functions/v1/mantle-sdk?action=getSwapQuote&fromSymbol=MNT&toSymbol=USDC&amount=100" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3cHBqb3JtdnFhaWpvemdoYnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc0MjcsImV4cCI6MjA4MTIyMzQyN30.-IkhFIhH13GES1GqMtWsjWpx9LNphedmXLCcxY21i98"
+```
+
+### Test Pool Yields
+
+```bash
+curl "https://swppjormvqaijozghbsb.supabase.co/functions/v1/mantle-sdk?action=getPoolYields" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3cHBqb3JtdnFhaWpvemdoYnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc0MjcsImV4cCI6MjA4MTIyMzQyN30.-IkhFIhH13GES1GqMtWsjWpx9LNphedmXLCcxY21i98"
+```
+
+### Expected Responses
+
+| Endpoint | Expected Status | Description |
+|----------|-----------------|-------------|
+| `getBlockNumber` | 200 | Returns current Mantle block number |
+| `listSupportedProtocols` | 200 | Returns 6 protocols (mETH, cmETH, Lendle, Aurelius, USD1, Ondo) |
+| `getUserPositions` | 200 | Returns demo positions for example wallet |
+| `getTokenPrices` | 200 | Returns 8 token prices with 24h change |
+| `getSwapQuote` | 200 | Returns swap quote with exchange rate |
+| `getPoolYields` | 200 | Returns yield data for all pools |
 
 ## 📖 References
 
