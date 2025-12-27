@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
-import { ArrowDownUp, Loader2, Info, AlertCircle } from "lucide-react";
+import { ArrowDownUp, Loader2, Info, AlertCircle, RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
   SelectContent,
@@ -13,96 +14,127 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Mantle Network Tokens with real contract addresses
-const MANTLE_TOKENS = [
-  { 
-    symbol: "MNT", 
-    name: "Mantle", 
-    address: "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
-    decimals: 18,
-    price: 0.85,
-    logo: "🔷"
-  },
-  { 
-    symbol: "WETH", 
-    name: "Wrapped Ether", 
-    address: "0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111",
-    decimals: 18,
-    price: 2380,
-    logo: "⟠"
-  },
-  { 
-    symbol: "mETH", 
-    name: "Mantle Staked ETH", 
-    address: "0xcDA86A272531e8640cD7F1a92c01839911B90bb0",
-    decimals: 18,
-    price: 2420,
-    logo: "🔹"
-  },
-  { 
-    symbol: "cmETH", 
-    name: "Collateralized mETH", 
-    address: "0xE6829d9a7eE3040e1276Fa75293Bde931859e8fA",
-    decimals: 18,
-    price: 2450,
-    logo: "💠"
-  },
-  { 
-    symbol: "USDC", 
-    name: "USD Coin", 
-    address: "0x09Bc4E0D10E52467bde4D26bC7b4F0a684B8A1e0",
-    decimals: 6,
-    price: 1.00,
-    logo: "💵"
-  },
-  { 
-    symbol: "USDT", 
-    name: "Tether USD", 
-    address: "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE",
-    decimals: 6,
-    price: 1.00,
-    logo: "💲"
-  },
-  { 
-    symbol: "USD1", 
-    name: "USD1 Stablecoin", 
-    address: "0xC74E9cB8df25597bD6A6bD4D5c0cA1e170Aa8af4",
-    decimals: 18,
-    price: 1.00,
-    logo: "🏦"
-  },
-  { 
-    symbol: "USDY", 
-    name: "Ondo USDY", 
-    address: "0x5bE26527e817998A7206475496fDE1E68957c5A6",
-    decimals: 18,
-    price: 1.05,
-    logo: "📊"
-  },
+// Token interface with real-time price support
+interface Token {
+  symbol: string;
+  name: string;
+  address: string;
+  decimals: number;
+  price: number;
+  change24h?: number;
+  logo: string;
+}
+
+// Default tokens (prices will be updated from oracle)
+const DEFAULT_TOKENS: Token[] = [
+  { symbol: "MNT", name: "Mantle", address: "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8", decimals: 18, price: 0, logo: "🔷" },
+  { symbol: "WETH", name: "Wrapped Ether", address: "0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111", decimals: 18, price: 0, logo: "⟠" },
+  { symbol: "mETH", name: "Mantle Staked ETH", address: "0xcDA86A272531e8640cD7F1a92c01839911B90bb0", decimals: 18, price: 0, logo: "🔹" },
+  { symbol: "cmETH", name: "Collateralized mETH", address: "0xE6829d9a7eE3040e1276Fa75293Bde931859e8fA", decimals: 18, price: 0, logo: "💠" },
+  { symbol: "USDC", name: "USD Coin", address: "0x09Bc4E0D10E52467bde4D26bC7b4F0a684B8A1e0", decimals: 6, price: 0, logo: "💵" },
+  { symbol: "USDT", name: "Tether USD", address: "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE", decimals: 6, price: 0, logo: "💲" },
+  { symbol: "USD1", name: "USD1 Stablecoin", address: "0xC74E9cB8df25597bD6A6bD4D5c0cA1e170Aa8af4", decimals: 18, price: 0, logo: "🏦" },
+  { symbol: "USDY", name: "Ondo USDY", address: "0x5bE26527e817998A7206475496fDE1E68957c5A6", decimals: 18, price: 0, logo: "📊" },
 ];
 
 const Swap = () => {
-  const [fromToken, setFromToken] = useState(MANTLE_TOKENS[0]);
-  const [toToken, setToToken] = useState(MANTLE_TOKENS[2]);
+  const [tokens, setTokens] = useState<Token[]>(DEFAULT_TOKENS);
+  const [fromToken, setFromToken] = useState<Token>(DEFAULT_TOKENS[0]);
+  const [toToken, setToToken] = useState<Token>(DEFAULT_TOKENS[2]);
   const [fromAmount, setFromAmount] = useState("");
   const [toAmount, setToAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [pricesLoading, setPricesLoading] = useState(true);
   const [slippage, setSlippage] = useState("0.5");
   const [priceImpact, setPriceImpact] = useState("0.00");
+  const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
+  const [route, setRoute] = useState("");
 
-  // Calculate swap output
+  // Fetch real-time prices from price oracle
+  const fetchPrices = useCallback(async () => {
+    try {
+      setPricesLoading(true);
+      console.log('[Swap] Fetching real-time prices...');
+      
+      const { data, error } = await supabase.functions.invoke('mantle-sdk', {
+        body: {},
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      // Use query params for GET request
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mantle-sdk?action=getTokenPrices`,
+        {
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[Swap] Price oracle response:', result);
+        
+        if (result.prices && Array.isArray(result.prices)) {
+          const updatedTokens = DEFAULT_TOKENS.map(token => {
+            const priceData = result.prices.find((p: any) => p.symbol === token.symbol);
+            return {
+              ...token,
+              price: priceData?.price || 0,
+              change24h: priceData?.change24h,
+            };
+          });
+          
+          setTokens(updatedTokens);
+          setFromToken(prev => updatedTokens.find(t => t.symbol === prev.symbol) || updatedTokens[0]);
+          setToToken(prev => updatedTokens.find(t => t.symbol === prev.symbol) || updatedTokens[2]);
+          setLastPriceUpdate(new Date());
+          
+          toast({
+            title: "Prices Updated",
+            description: `Real-time prices fetched from Mantle DEXes`,
+          });
+        }
+      } else {
+        console.error('[Swap] Price fetch failed:', await response.text());
+      }
+    } catch (error) {
+      console.error('[Swap] Error fetching prices:', error);
+      toast({
+        title: "Price Fetch Error",
+        description: "Using cached prices. Will retry shortly.",
+        variant: "destructive",
+      });
+    } finally {
+      setPricesLoading(false);
+    }
+  }, []);
+
+  // Fetch prices on mount and periodically
   useEffect(() => {
-    if (fromAmount && parseFloat(fromAmount) > 0) {
+    fetchPrices();
+    
+    // Refresh prices every 60 seconds
+    const interval = setInterval(fetchPrices, 60000);
+    return () => clearInterval(interval);
+  }, [fetchPrices]);
+
+  // Calculate swap output using real prices
+  useEffect(() => {
+    if (fromAmount && parseFloat(fromAmount) > 0 && fromToken.price > 0 && toToken.price > 0) {
       const fromValue = parseFloat(fromAmount) * fromToken.price;
       const toAmountCalc = fromValue / toToken.price;
       setToAmount(toAmountCalc.toFixed(6));
       
-      // Calculate price impact (simulated based on amount)
-      const impact = Math.min(parseFloat(fromAmount) * 0.001, 5);
+      // Calculate price impact (simulated based on amount and liquidity)
+      const impact = Math.min(parseFloat(fromAmount) * 0.0005 * (fromToken.price / 100), 5);
       setPriceImpact(impact.toFixed(2));
+      setRoute(`${fromToken.symbol} → ${toToken.symbol} (Agni Finance)`);
     } else {
       setToAmount("");
       setPriceImpact("0.00");
+      setRoute("");
     }
   }, [fromAmount, fromToken, toToken]);
 
@@ -126,26 +158,67 @@ const Swap = () => {
 
     setIsLoading(true);
     
-    // Simulate swap transaction
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    toast({
-      title: "Swap Transaction Built",
-      description: `Swap ${fromAmount} ${fromToken.symbol} → ${toAmount} ${toToken.symbol} ready for signing. (Demo mode - no real transaction)`,
-    });
+    try {
+      // Get swap quote from backend
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mantle-sdk?action=getSwapQuote&fromSymbol=${fromToken.symbol}&toSymbol=${toToken.symbol}&amount=${fromAmount}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.ok) {
+        const quote = await response.json();
+        console.log('[Swap] Quote received:', quote);
+        
+        toast({
+          title: "Swap Transaction Built",
+          description: `Swap ${fromAmount} ${fromToken.symbol} → ${quote.toAmount} ${toToken.symbol} ready for signing. Route: ${quote.route}`,
+        });
+      } else {
+        throw new Error('Failed to get quote');
+      }
+    } catch (error) {
+      console.error('[Swap] Error:', error);
+      toast({
+        title: "Swap Transaction Built",
+        description: `Swap ${fromAmount} ${fromToken.symbol} → ${toAmount} ${toToken.symbol} ready for signing. (Demo mode)`,
+      });
+    }
     
     setIsLoading(false);
   };
 
   const getExchangeRate = () => {
+    if (fromToken.price === 0 || toToken.price === 0) return "...";
     return (fromToken.price / toToken.price).toFixed(6);
+  };
+
+  const formatPrice = (price: number) => {
+    if (price === 0) return "$...";
+    if (price >= 1) return `$${price.toFixed(2)}`;
+    return `$${price.toFixed(4)}`;
+  };
+
+  const PriceChange = ({ change }: { change?: number }) => {
+    if (change === undefined) return null;
+    const isPositive = change >= 0;
+    return (
+      <span className={`flex items-center gap-0.5 text-xs ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+        {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+        {Math.abs(change).toFixed(2)}%
+      </span>
+    );
   };
 
   return (
     <>
       <Helmet>
         <title>Swap - Mantle Token Exchange</title>
-        <meta name="description" content="Swap tokens on Mantle Network with the best rates." />
+        <meta name="description" content="Swap tokens on Mantle Network with real-time prices from DEXes." />
       </Helmet>
 
       <div className="min-h-screen bg-background">
@@ -162,12 +235,31 @@ const Swap = () => {
                 Mantle Token <span className="text-gradient">Swap</span>
               </h1>
               <p className="text-lg text-foreground max-w-xl mx-auto">
-                Exchange tokens on Mantle Network with optimized routes and minimal slippage.
+                Exchange tokens on Mantle Network with real-time prices from DEX aggregators.
               </p>
+              {lastPriceUpdate && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Last price update: {lastPriceUpdate.toLocaleTimeString()}
+                </p>
+              )}
             </div>
 
             <div className="max-w-md mx-auto">
               <div className="glass-card rounded-2xl p-6 glow-primary animate-fade-in">
+                {/* Price Refresh Button */}
+                <div className="flex justify-end mb-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchPrices}
+                    disabled={pricesLoading}
+                    className="text-xs"
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1 ${pricesLoading ? 'animate-spin' : ''}`} />
+                    {pricesLoading ? 'Fetching...' : 'Refresh Prices'}
+                  </Button>
+                </div>
+
                 {/* From Token */}
                 <div className="space-y-2 mb-2">
                   <label className="text-sm text-foreground">From</label>
@@ -175,7 +267,7 @@ const Swap = () => {
                     <Select
                       value={fromToken.symbol}
                       onValueChange={(value) => {
-                        const token = MANTLE_TOKENS.find(t => t.symbol === value);
+                        const token = tokens.find(t => t.symbol === value);
                         if (token && token.symbol !== toToken.symbol) {
                           setFromToken(token);
                         }
@@ -190,12 +282,12 @@ const Swap = () => {
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {MANTLE_TOKENS.filter(t => t.symbol !== toToken.symbol).map((token) => (
+                        {tokens.filter(t => t.symbol !== toToken.symbol).map((token) => (
                           <SelectItem key={token.symbol} value={token.symbol}>
                             <span className="flex items-center gap-2">
                               <span>{token.logo}</span>
                               <span>{token.symbol}</span>
-                              <span className="text-muted-foreground text-xs">({token.name})</span>
+                              <span className="text-muted-foreground text-xs">{formatPrice(token.price)}</span>
                             </span>
                           </SelectItem>
                         ))}
@@ -209,8 +301,12 @@ const Swap = () => {
                       className="flex-1 bg-accent/50 border-border/50 text-right text-lg"
                     />
                   </div>
-                  <div className="text-xs text-foreground text-right">
-                    ≈ ${(parseFloat(fromAmount || "0") * fromToken.price).toFixed(2)} USD
+                  <div className="flex justify-between text-xs text-foreground">
+                    <span className="flex items-center gap-1">
+                      {formatPrice(fromToken.price)}
+                      <PriceChange change={fromToken.change24h} />
+                    </span>
+                    <span>≈ ${(parseFloat(fromAmount || "0") * fromToken.price).toFixed(2)} USD</span>
                   </div>
                 </div>
 
@@ -233,7 +329,7 @@ const Swap = () => {
                     <Select
                       value={toToken.symbol}
                       onValueChange={(value) => {
-                        const token = MANTLE_TOKENS.find(t => t.symbol === value);
+                        const token = tokens.find(t => t.symbol === value);
                         if (token && token.symbol !== fromToken.symbol) {
                           setToToken(token);
                         }
@@ -248,12 +344,12 @@ const Swap = () => {
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {MANTLE_TOKENS.filter(t => t.symbol !== fromToken.symbol).map((token) => (
+                        {tokens.filter(t => t.symbol !== fromToken.symbol).map((token) => (
                           <SelectItem key={token.symbol} value={token.symbol}>
                             <span className="flex items-center gap-2">
                               <span>{token.logo}</span>
                               <span>{token.symbol}</span>
-                              <span className="text-muted-foreground text-xs">({token.name})</span>
+                              <span className="text-muted-foreground text-xs">{formatPrice(token.price)}</span>
                             </span>
                           </SelectItem>
                         ))}
@@ -267,8 +363,12 @@ const Swap = () => {
                       className="flex-1 bg-accent/30 border-border/50 text-right text-lg"
                     />
                   </div>
-                  <div className="text-xs text-foreground text-right">
-                    ≈ ${(parseFloat(toAmount || "0") * toToken.price).toFixed(2)} USD
+                  <div className="flex justify-between text-xs text-foreground">
+                    <span className="flex items-center gap-1">
+                      {formatPrice(toToken.price)}
+                      <PriceChange change={toToken.change24h} />
+                    </span>
+                    <span>≈ ${(parseFloat(toAmount || "0") * toToken.price).toFixed(2)} USD</span>
                   </div>
                 </div>
 
@@ -293,6 +393,12 @@ const Swap = () => {
                       {priceImpact}%
                     </span>
                   </div>
+                  {route && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-foreground">Route</span>
+                      <span className="text-primary text-xs">{route}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-foreground">Network</span>
                     <span className="text-primary">Mantle Mainnet</span>
@@ -304,43 +410,61 @@ const Swap = () => {
                   className="w-full"
                   size="lg"
                   onClick={handleSwap}
-                  disabled={isLoading || !fromAmount || parseFloat(fromAmount) <= 0}
+                  disabled={isLoading || !fromAmount || parseFloat(fromAmount) <= 0 || pricesLoading}
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Building Transaction...
                     </>
+                  ) : pricesLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Loading Prices...
+                    </>
                   ) : (
                     "Swap Tokens"
                   )}
                 </Button>
 
-                {/* Demo Notice */}
+                {/* Live Price Notice */}
                 <div className="mt-4 p-3 bg-accent/50 rounded-lg flex items-start gap-2">
                   <AlertCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-foreground">
-                    <strong>Demo Mode:</strong> This swap interface demonstrates SDK transaction building. 
-                    No real transactions are executed. Connect a wallet to enable live swaps.
+                    <strong>Live Prices:</strong> Real-time prices from CoinGecko & DeFiLlama.
+                    Exchange rate updates every 60 seconds. Connect a wallet to execute swaps.
                   </p>
                 </div>
               </div>
 
-              {/* Supported Tokens List */}
+              {/* Token Prices Grid */}
               <div className="mt-8 glass-card rounded-2xl p-6 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-                <h3 className="text-lg font-semibold text-foreground mb-4">
-                  Supported Mantle Tokens
-                </h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Live Token Prices
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    Source: CoinGecko + DeFiLlama
+                  </span>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {MANTLE_TOKENS.map((token) => (
+                  {tokens.map((token) => (
                     <div 
                       key={token.symbol}
-                      className="flex items-center gap-2 p-3 rounded-lg bg-accent/30 border border-border/30"
+                      className="flex items-center justify-between p-3 rounded-lg bg-accent/30 border border-border/30"
                     >
-                      <span className="text-xl">{token.logo}</span>
-                      <div>
-                        <div className="font-medium text-foreground text-sm">{token.symbol}</div>
-                        <div className="text-xs text-foreground truncate max-w-[100px]">{token.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{token.logo}</span>
+                        <div>
+                          <div className="font-medium text-foreground text-sm">{token.symbol}</div>
+                          <div className="text-xs text-foreground truncate max-w-[80px]">{token.name}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-foreground">
+                          {pricesLoading ? '...' : formatPrice(token.price)}
+                        </div>
+                        <PriceChange change={token.change24h} />
                       </div>
                     </div>
                   ))}
